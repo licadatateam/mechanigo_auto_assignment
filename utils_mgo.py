@@ -633,7 +633,9 @@ def clean_appointments(appointments : pd.DataFrame,
         
         # Drop duplicates and reset index
         appointments = appointments.drop_duplicates(subset=['appointment_id']).reset_index(drop=True)
-
+        
+        
+        
         # Drop unnecessary columns (if they exist)
         appointments = appointments.drop(columns=['date', 'time'], errors='ignore')
 
@@ -681,7 +683,8 @@ def query_appointments(appointments : pd.DataFrame,
     try:
               
         # Filter appointments based on the selected date
-        filtered_appointments = appointments.loc[appointments['appointment_date']==selected_date]
+        filtered_appointments = appointments.loc[(appointments['appointment_date'] == selected_date) |\
+                                                 (appointments['appointment_date'] == selected_date.strftime('%Y-%m-%d'))]
 
         # Filter appointments by confirmation status
         if backtest:

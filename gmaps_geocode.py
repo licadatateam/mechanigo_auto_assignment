@@ -120,6 +120,7 @@ class Geocoder:
         try:
             lat, long = list(r['results'][0]['geometry']['location'].values())
         except:
+            print(f'Unable to get lat/long for {address}')
             lat, long = None, None
         return lat, long
     

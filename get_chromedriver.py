@@ -13,6 +13,7 @@ import os
 
 if 'chromedriver-win64\\chromedriver.exe' not in os.environ['PATH']:
     os.environ['PATH'] += ';' + r"\chromedriver-win64\chromedriver.exe"
+    os.environ['PATH'] += ';' + r"\chromedriver-linux64\chromedriver"
     os.environ['PATH'] += ';' + r"\chromedriver.exe"
 
 # selenium

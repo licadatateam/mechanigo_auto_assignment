@@ -19,7 +19,7 @@ def request_assignment(selected_date : str):
     return r
 
 if 'selected_date' not in st.session_state:
-    st.session_state['selected_date'] = dt.datetime.today().date().strftime('%Y-%m-%d')
+    st.session_state['selected_date'] = dt.datetime.today().date()
 
 
 selected_date = st.date_input(label = 'Select date:',

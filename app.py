@@ -16,9 +16,13 @@ import signal
 import sys
 from types import FrameType
 
-from flask import Flask
+from flask import Flask, jsonify, request
 
 from utils.logging import logger
+import MechanicsAssignment as mech_assign
+import utils_mgo
+import json
+import datetime as dt
 
 app = Flask(__name__)
 
@@ -33,6 +37,29 @@ def hello() -> str:
 
     return "Hello, World!"
 
+@app.route('/assignment/', methods = ['GET'])
+def get_assignments():
+    '''
+    Sample usage: requests.get('http://127.0.0.1:5000/assignment/?date=2024-10-19')
+    '''
+    # extract variables/parameters
+    selected_date = request.args.get('date')
+    # if selected_date is provided
+    if selected_date is not None:
+        try:
+            selected_date, selected_sched = utils_mgo.check_selected_date(selected_date)
+            # set selected_date in assignment class
+            assignment = mech_assign.MechanicsAssignment(selected_date)
+            # calculate solution
+            assignment.optimize_assignment()
+            # return result in json form
+            results = assignment.app_result
+            response = jsonify(data=json.loads(results))
+            
+        except Exception as exception:
+            raise exception
+    
+    return response
 
 def shutdown_handler(signal_int: int, frame: FrameType) -> None:
     logger.info(f"Caught Signal {signal.strsignal(signal_int)}")

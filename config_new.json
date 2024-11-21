@@ -1,0 +1,26 @@
+{"mgo_sheet" : "1VfoSJ2FhocjFKkNTMMlJFXvcoh435nZ4wKJf6PmpeQc",
+"barangays_sheet_name" : "barangays",
+"mechanics_sheet_name" : "mechanics_masterlist",
+"appointments_key" : "http://app.redash.licagroup.ph/api/queries/342/results.csv?api_key=qNxKRdzCbUhCiwBm9iJIdziRMOdkrPcZ0jZ4H3jc",
+"service_hubs" : {
+		 "MAKATI" : {"lat":14.5640785, "long":121.0113147},
+		 "SUCAT" : {"lat":14.4534866, "long":121.0301002},
+		 "STA ROSA" : {"lat":14.2579658, "long":121.0694949},
+		 "DASMARINAS" : {"lat":14.308320, "long":120.952458},
+		 "BULACAN" : {"lat":14.8344651, "long":120.8632816}
+		},
+"service_duration" : {
+		      "PMS" : {"HOURS" : 2, "MINUTES" : 0},
+		      "CAR BUYING ASSISTANCE" : {"HOURS" : 1, "MINUTES" : 30},
+		      "INITIAL DIAGNOSIS" : {"HOURS" : 1, "MINUTES" : 0},
+		      "ELECTRICAL" : {"HOURS" : 0, "MINUTES" : 45},
+		      "PARTS REPLACEMENT" : {"HOURS" : 0, "MINUTES" : 45}
+		    },
+"tools" : {"CAR BUYING ASSISTANCE" : {
+		"MAKATI" : 4,
+		"STA ROSA" : 1,
+		"SUCAT" : 1,
+		"DASMARINAS" : 0,
+		"BULACAN" : 0}
+	}
+}

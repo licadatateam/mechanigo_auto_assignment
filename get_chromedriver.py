@@ -163,9 +163,12 @@ def create_driver():
                 service = Service(r".\chromedriver.exe")
             except:
                 service = Service(r".\chromedriver-win64\chromedriver.exe")
-        
-        driver = Chrome(service = service, 
-                        options = options)
+
+        try:
+            driver = Chrome(service = service, 
+                            options = options)
+        except:
+            driver = Chrome(options = options)
     
     except Exception as e:
         # extract exception error with chrome version

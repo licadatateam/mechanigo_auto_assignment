@@ -13,3 +13,4 @@ selenium
 ortools
 scikit-learn
 geopy==2.4.1
+chromedriver-binary==133.0.6848.0.0

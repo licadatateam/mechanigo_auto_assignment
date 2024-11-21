@@ -20,6 +20,7 @@ from flask import Flask, jsonify, request
 
 from utils.logging import logger
 import MechanicsAssignment as mech_assign
+import chromedriver_binary
 import utils_mgo
 import json
 import datetime as dt

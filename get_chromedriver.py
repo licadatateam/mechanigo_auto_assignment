@@ -86,7 +86,8 @@ def get_json_link(version = None):
         link = js_dict['versions'][ndx-1]['downloads']['chromedriver'][-1]['url']
     
     except:
-        link = None
+        # linux
+        link = js_dict['versions'][ndx-1]['downloads']['chromedriver'][0]['url']
     
     return link
     

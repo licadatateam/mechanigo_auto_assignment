@@ -22,7 +22,8 @@ if 'selected_date' not in st.session_state:
     st.session_state['selected_date'] = dt.datetime.today().date().strftime('%Y-%m-%d')
 
 
-selected_date = st.date_input(value = st.session_state['selected_date'],
+selected_date = st.date_input(label = 'Select date:',
+                              value = st.session_state['selected_date'],
                               format = "YYYY-MM-DD")
 
 if st.button('Confirm'):

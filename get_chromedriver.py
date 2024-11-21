@@ -84,6 +84,7 @@ def get_json_link(version = None):
     
     # extract link from win64 version
     try:
+        # windows
         link = js_dict['versions'][ndx-1]['downloads']['chromedriver'][-1]['url']
     
     except:
@@ -132,7 +133,10 @@ def extract_chromedriver():
     path = 'chromedriver.zip'
     
     with zipfile.ZipFile(path) as zf:
-        zf.extract(r'chromedriver-win64/chromedriver.exe')
+        try:
+            zf.extract(r'chromedriver-win64/chromedriver.exe')
+        except:
+            zf.extract(r'chromedriver-linux64/chromedriver')
 
 def create_driver():
     '''
@@ -155,7 +159,10 @@ def create_driver():
         try:
             service = Service(r".\chromedriver-win64\chromedriver.exe")
         except:
-            service = Service(r".\chromedriver.exe")
+            try:
+                service = Service(r".\chromedriver.exe")
+            except:
+                service = Service(r".\chromedriver-linux64\chromedriver")
         
         driver = Chrome(service = service, 
                         options = options)

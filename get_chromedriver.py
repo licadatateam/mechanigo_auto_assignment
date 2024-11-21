@@ -157,18 +157,15 @@ def create_driver():
     try:
         # initial attempt at creating chromedriver
         try:
-            service = Service(r"/usr/lib/chromium-browser/chromedriver")
+            service = Service(r".\chromedriver-win64\chromedriver.exe")
         except:
             try:
                 service = Service(r".\chromedriver.exe")
             except:
-                service = Service(r".\chromedriver-win64\chromedriver.exe")
-
-        try:
-            driver = Chrome(service = service, 
-                            options = options)
-        except:
-            driver = Chrome(options = options)
+                service = Service(r".\chromedriver-linux64\chromedriver")
+        
+        driver = Chrome(service = service, 
+                        options = options)
     
     except Exception as e:
         # extract exception error with chrome version

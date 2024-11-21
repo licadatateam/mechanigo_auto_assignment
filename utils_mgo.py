@@ -845,9 +845,9 @@ def fill_table_with_geocoding(df: pd.DataFrame,
     # Create an instance of the Geocoder and initialize the driver
     from gmaps_geocode import Geocoder
     gmaps = Geocoder()
-    gmaps.initialize_driver()
     
     try:
+        gmaps.initialize_driver()
         # Filter rows where latitude and longitude are missing
         missing_coords_df = df[df[lat_col].isnull() | df[long_col].isnull()]
         

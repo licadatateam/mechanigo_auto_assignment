@@ -59,8 +59,11 @@ class Geocoder:
         """
         Closes the Chrome WebDriver if it's initialized.
         """
-        if self.driver:
-            self.driver.quit()
+        try:
+            if self.driver:
+                self.driver.quit()
+        except:
+            pass
     
     def format_address_for_geocoding(self, address):
         """
@@ -114,9 +117,9 @@ class Geocoder:
         response = requests.get(search_url)
         response.raise_for_status()  # Raise exception for HTTP errors
         r = response.json()
-        if r:
+        try:
             lat, long = list(r['results'][0]['geometry']['location'].values())
-        else:
+        except:
             lat, long = None, None
         return lat, long
     
@@ -189,11 +192,11 @@ class Geocoder:
         tuple : Contains address, latitude, and longitude.
         """
         try:
+            lat, long = self.geocode_address(address)
+        except:
             self.query_new_address(address)
             current_url = self.driver.current_url
             lat, long = self.get_lat_long_from_url(current_url)
-        except:
-            lat, long = self.geocode_address(address)
         return address, lat, long
     
     def geocode_dataframe(self, df, address_col='address'):

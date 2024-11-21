@@ -14,6 +14,10 @@ import get_chromedriver
 import regex as re
 import pandas as pd
 
+import urllib.parse
+import requests
+import os
+
 class Geocoder:
     """
     A class to geocode addresses using Google Maps via Selenium WebDriver.
@@ -30,6 +34,12 @@ class Geocoder:
 
     def __init__(self):
         self.driver = None
+        try:
+            self.api_key = os.environ.get('GMAPS_API_KEY')
+            if not self.api_key:
+                raise ValueError("API_KEY not found in environment variables")
+        except:
+            self.api_key = None
         
     def initialize_driver(self):
         """
@@ -51,7 +61,65 @@ class Geocoder:
         """
         if self.driver:
             self.driver.quit()
-            
+    
+    def format_address_for_geocoding(self, address):
+        """
+        Formats an address string to make it viable for use in the Google Maps Geocode API.
+        
+        Parameters:
+        ----------
+        address : str
+            The input address string to be sanitized and encoded.
+
+        Returns:
+        --------
+        str
+            A URL-encoded address string ready for use in the Geocode API.
+        """
+        if not isinstance(address, str):
+            raise ValueError("The address must be a string.")
+        
+        # Strip leading/trailing spaces
+        sanitized_address = address.strip()
+        
+        # Replace unnecessary special characters (e.g., multiple spaces, newlines)
+        sanitized_address = " ".join(sanitized_address.split())
+        
+        # URL-encode the sanitized address for use in HTTP requests
+        encoded_address = urllib.parse.quote(sanitized_address)
+        
+        return encoded_address
+    
+    def geocode_address(self, address):
+        """
+        Uses the Google Maps Geocode API to get geolocation data for an address.
+        
+        Parameters:
+        ----------
+        api_key : str
+            Your Google Maps API key.
+        address : str
+            The address to geocode.
+        
+        Returns:
+        --------
+        dict
+            JSON response containing geolocation data.
+        """
+        base_url = "https://maps.googleapis.com/maps/api/geocode/json"
+        formatted_address = self.format_address_for_geocoding(address)
+        params = {"address": formatted_address, "key": self.api_key}
+        
+        search_url = f"{base_url}?address={params['address']}&key={params['key']}"
+        response = requests.get(search_url)
+        response.raise_for_status()  # Raise exception for HTTP errors
+        r = response.json()
+        if r:
+            lat, long = list(r['results'][0]['geometry']['location'].values())
+        else:
+            lat, long = None, None
+        return lat, long
+    
     def query_new_address(self, address):
         """
         Queries Google Maps for the given address and waits for the results.
@@ -120,9 +188,12 @@ class Geocoder:
         --------
         tuple : Contains address, latitude, and longitude.
         """
-        self.query_new_address(address)
-        current_url = self.driver.current_url
-        lat, long = self.get_lat_long_from_url(current_url)
+        try:
+            self.query_new_address(address)
+            current_url = self.driver.current_url
+            lat, long = self.get_lat_long_from_url(current_url)
+        except:
+            lat, long = self.geocode_address(address)
         return address, lat, long
     
     def geocode_dataframe(self, df, address_col='address'):

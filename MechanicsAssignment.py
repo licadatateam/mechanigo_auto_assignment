@@ -43,6 +43,8 @@ class MechanicsAssignment:
         self.appointments_cleaned = False  # Track whether appointments have been cleaned
         self.lookback_days = 30
         
+        self.data_model = None
+        
         if self.selected_date < dt.datetime.today().date():
             self.backtest = True
         
@@ -199,7 +201,17 @@ class MechanicsAssignment:
         self.appointments_df.reset_index(inplace=True)
         self.appointments_df.rename(columns={'index':'appointment_id'}, 
                                                   inplace = True)
+    
+    def create_data_model(self):
+    
+        self.data_model = vrp_algorithm.create_data_model(self.appointments_df,
+                                                          self.mechanics_df,
+                                                          self.hubs_df,
+                                                          self.assign_weights,
+                                                          self.keys['tools'])
         
+        return self.data_model
+    
     def optimize_assignment(self):
         """
         Perform the optimization of mechanics assignments to appointments and return the solution.
@@ -223,6 +235,8 @@ class MechanicsAssignment:
             self.appointments_df['assigned_hub'] = None
         
         self.assign_weights = self.get_assign_weights()
+        
+        self.data_model = self.create_data_model()
         
         # Perform optimization for mechanic assignment
         self.solution = vrp_algorithm.optimize_mechanics_assignment(self.mechanics_df,

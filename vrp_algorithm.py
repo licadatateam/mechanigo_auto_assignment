@@ -138,8 +138,8 @@ def create_skill_matrix(mechanics_df, appointments_df, base_penalty = 10000):
         'PMS': int(1*base_penalty),   # Highest penalty for missing PMS skill
         'CAR_BUYING_ASSISTANCE' : int(1*base_penalty),
         'INITIAL_DIAGNOSIS' : int(0.5*base_penalty),
-        'ELECTRICAL': int(0.3*base_penalty),     # Medium penalty for missing ELECTRICAL skill
-        'PARTS_REPLACEMENT': int(0.5*base_penalty),  # Lower penalty for missing PARTS REPLACEMENT skill
+        #'ELECTRICAL': int(0.3*base_penalty),     # Medium penalty for missing ELECTRICAL skill
+        #'PARTS_REPLACEMENT': int(0.5*base_penalty),  # Lower penalty for missing PARTS REPLACEMENT skill
     }
 
     # Extract package categories from appointments and process them
@@ -568,7 +568,7 @@ def get_arc_costs(routing, manager, solution, data):
             # Convert indices to nodes
             from_node = manager.IndexToNode(index)
             to_node = manager.IndexToNode(next_index)
-
+            
             # Get the arc cost
             arc_cost = routing.GetArcCostForVehicle(index, next_index, vehicle_id)
             
@@ -611,7 +611,28 @@ def get_arc_cost(data, manager, routing, node1, node2, mechanic):
     arc_cost = routing.GetArcCostForVehicle(n1_ndx, n2_ndx, m)
     return arc_cost
     
-
+def create_manager(data : dict):
+    """
+    Constructs pywrapcp.RoutingIndexManager from given 'data' dict input.
+    
+    Parameters:
+    -----------
+    data : dict
+        Dictionary containing necessary information for assignment algorithm.
+        
+    Returns:
+    --------
+    manager : pywrapcp.RoutingIndexManager
+    
+    """
+    
+    manager = pywrapcp.RoutingIndexManager(len(data["time_matrix"]), 
+                                           data["num_mechanics"], 
+                                           data["depot_ndx"],
+                                           data["depot_ndx"])
+    
+    return manager
+    
 
 # Updated function to optimize mechanic assignments
 def optimize_mechanics_assignment(mechanics_df : pd.DataFrame, 
@@ -688,10 +709,8 @@ def optimize_mechanics_assignment(mechanics_df : pd.DataFrame,
                              tool_reqs)
     
     # OR-Tools data manager setup
-    manager = pywrapcp.RoutingIndexManager(len(data["time_matrix"]), 
-                                           data["num_mechanics"], 
-                                           data["depot_ndx"],
-                                           data["depot_ndx"])
+    manager = create_manager(data)
+    
     # routing
     routing = pywrapcp.RoutingModel(manager)
     
@@ -740,9 +759,11 @@ def optimize_mechanics_assignment(mechanics_df : pd.DataFrame,
             from_node = manager.IndexToNode(from_index)
             to_node = manager.IndexToNode(to_index)
             base_cost = data['time_matrix'][from_node][to_node]
+            if base_cost >= 1350:
+                base_cost = base_cost * 25
             
             # Penalty based on mechanic's recent assignment weight
-            weight_penalty = (1 - data['assign_weights'][mechanic_name]) * 5000  # Scale as needed
+            weight_penalty = (1 - data['assign_weights'][mechanic_name]) * 1000  # Scale as needed
             
             # skill penalty
             num_hubs = max(data['depot_ndx']) + 1
@@ -776,7 +797,7 @@ def optimize_mechanics_assignment(mechanics_df : pd.DataFrame,
         # Register a custom cost function for each mechanic (vehicle) using their weights
         for mechanic_ndx in range(data['num_mechanics']):
             mechanic_name = data['mechanics_df'].iloc[mechanic_ndx]['NAME']
-            hub = mechanics_df.iloc[mechanic_ndx]['HUB']
+            hub = data['mechanics_df'].iloc[mechanic_ndx]['HUB']
             tool_capacity = data['tool_reqs']['CAR BUYING ASSISTANCE'][hub]
             
             assert mechanic_name in data['assign_weights'], f"Mechanic '{mechanic_name}' not found in assign_weights"
@@ -801,7 +822,7 @@ def optimize_mechanics_assignment(mechanics_df : pd.DataFrame,
     routing.AddDimension(
         transit_callback_index,
         slack_max = int(dt.timedelta(hours=6).total_seconds()),  # Allow some waiting time between jobs
-        capacity = int(dt.timedelta(hours=22).total_seconds()),  # Max time for mechanic working hours (from start of day)
+        capacity = int(dt.timedelta(hours=24).total_seconds()),  # Max time for mechanic working hours (from start of day)
         fix_start_cumul_to_zero=False,  # Not all mechanics need to start at the same time
         name = time
     )
@@ -882,7 +903,7 @@ def optimize_mechanics_assignment(mechanics_df : pd.DataFrame,
         #routing.solver().Add(tool_usage_dimension.CumulVar(hub_internal_index) <= hub_tool_capacity[hub_index])
         
     # Step 8: Add high penalty for unassigned appointments
-    unassigned_penalty = 100000  # A large penalty for not assigning an appointment
+    unassigned_penalty = 250000  # A large penalty for not assigning an appointment
     for appointment_index in range(len(appointments_df)):
         index = manager.NodeToIndex(appointment_index + len(hubs_df))  # Offset by hubs
         routing.AddDisjunction([index], int(unassigned_penalty))
@@ -948,3 +969,6 @@ def optimize_mechanics_assignment(mechanics_df : pd.DataFrame,
 # hub_capacity penalty = 100000 -> 371843 = 1/2 fail
 # hub_capacity penalty = 20000 -> 371940 = 0/2 fail
 # hub_capacity penalty = 150000 -> 371843 = 1/2 fail
+
+# 36606
+# 36832

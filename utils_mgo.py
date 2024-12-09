@@ -339,25 +339,32 @@ def available_mechanics(df: pd.DataFrame,
     if df is None or df.empty:
         raise ValueError("The input mechanics DataFrame is empty or not provided.")
     
+    df.columns = [c.upper() for c in df.columns]
+    
     if selected_date is not None:
         # calculate selected_sched from selected_date
         selected_date, selected_sched = check_selected_date(selected_date)
         
         # Ensure that the required `selected_sched` column exists in the DataFrame
-        if selected_sched not in df.columns:
-            raise ValueError(f"'{selected_sched}' not found in the DataFrame columns.")
-        
-        # Check for valid schedule information (not null)
-        sched_cond = df[selected_sched].notnull()
+        try:
+            if selected_sched not in df.columns:
+                raise ValueError(f"'{selected_sched}' not found in the DataFrame columns.")
+            
+            # Check for valid schedule information (not null)
+            sched_cond = df[selected_sched].notnull() # gsheet
+        except:
+            sched_day = selected_date.strftime('%A').upper() # redash
+            sched_cond = df['DAY'] == sched_day
     
     else:
         sched_cond = df.NAME.notnull()
 
     # Filter mechanics based on their active status, regular position, and availability on the selected day
+    
     filtered_df = df[(df['STATUS'] == 'ACTIVE') & 
                      (df['POSITION'].isin(['REGULAR', 'TRAINEE',
                                            'PROBATIONARY'])) & 
-                     (df['HUB'] != 'HERTZ') &
+                     ~(df['HUB'].str.contains('HERTZ')) &
                      sched_cond]
     
     # If no mechanics are available after filtering, raise a warning
@@ -366,9 +373,22 @@ def available_mechanics(df: pd.DataFrame,
         
     # Calculate start and end times for each available mechanic
     else:
+        
         if selected_date is not None:
-            filtered_df[['START_TIME', 'END_TIME']] = filtered_df[selected_sched].apply(
-                lambda x: pd.Series(extract_schedule_times(x, selected_date)))
+            try:
+                filtered_df[['START_TIME', 'END_TIME']] = filtered_df[selected_sched].apply(
+                    lambda x: pd.Series(extract_schedule_times(x, selected_date)))
+            except:
+                filtered_df[['START_TIME', 'END_TIME']] = filtered_df.apply(
+                    lambda x: pd.Series(extract_schedule_times(x['START_TIME'], 
+                                                               selected_date, 
+                                                               start_time_str = x['START_TIME'],
+                                                               end_time_str = x['END_TIME'])), 
+                    axis=1)
+    
+    # ASSERT
+    
+    filtered_df.columns = [c.upper() for c in filtered_df.columns]
     
     return filtered_df.reset_index(drop = True)
 
@@ -539,15 +559,22 @@ def clean_appointments(appointments : pd.DataFrame,
         
         # Initialize time_end as time_start for the first calculation
         time_end = time_start
-
+        
+        max_duration = 0 # mins
         for category in categories:
             # Get the duration for the current category
             if category not in service_duration:
-                raise ValueError(f"Service category '{category}' not found in the service_duration dictionary.")
+                continue
+                #raise ValueError(f"Service category '{category}' not found in the service_duration dictionary.")
             
             duration = service_duration[category]
+            max_duration = max(max_duration, 
+                               duration['HOURS']*60 + duration['MINUTES'])
             # Add the hours and minutes for the current category to the time_end
-            time_end += dt.timedelta(hours=duration['HOURS'], minutes=duration['MINUTES'])
+            #time_end += dt.timedelta(hours=duration['HOURS'], minutes=duration['MINUTES'])
+        
+        time_end = dt.timedelta(hours = int(max_duration/60), 
+                                minutes = int(max_duration % 60))
         
         return time_end
 
@@ -578,7 +605,7 @@ def clean_appointments(appointments : pd.DataFrame,
         mechanics = [mechanic.strip() for mechanic in mechanics_str.split(',')]
         
         # Get unique mechanic names from the DataFrame
-        unique_mechanics = mechanics_df['NAME'].unique()
+        unique_mechanics = mechanics_df['name'].unique()
           
         # Initialize list to store matched mechanics
         matched_mechanics = []
@@ -608,7 +635,7 @@ def clean_appointments(appointments : pd.DataFrame,
         appointments.fillna({'package_category' : 'PMS'}, inplace = True)
         
         # calculate appointment time end from service_duration
-        appointments['appointment_time_end'] = appointments.apply(lambda x: calc_time_end(x['appointment_time_start'],
+        appointments['appointment_time_duration'] = appointments.apply(lambda x: calc_time_end(x['appointment_time_start'],
                                                                                           x['package_category']), axis=1)
         
         # Format 'appointment_time_start' and 'appointment_time_end' as strings
@@ -616,10 +643,11 @@ def clean_appointments(appointments : pd.DataFrame,
                                                                                                                   month = x['appointment_date'].month,
                                                                                                                   day = x['appointment_date'].day),
                                                                     axis = 1)
-        appointments['appointment_time_end'] = appointments.apply(lambda x: x['appointment_time_end'].replace(year = x['appointment_date'].year,
-                                                                                                              month = x['appointment_date'].month,
-                                                                                                              day = x['appointment_date'].day),
-                                                                    axis = 1)
+        # appointments['appointment_time_end'] = appointments.apply(lambda x: x['appointment_time_end'].replace(year = x['appointment_date'].year,
+        #                                                                                                       month = x['appointment_date'].month,
+        #                                                                                                       day = x['appointment_date'].day),
+        #                                                             axis = 1)
+        appointments['appointment_time_end'] = appointments['appointment_time_start'] + appointments['appointment_time_duration']
         
         appointments['province'] = appointments['province'].str.title()
         appointments.fillna({'address':''}, inplace = True)
@@ -762,7 +790,7 @@ def clean_address(row: pd.Series,
     # Attempt to extract street address by splitting at barangay, municipality, or province
     try:
         if barangay and barangay in address:
-            match = re.search(f'((Brgy\.)\s+)?{barangay}', address, re.IGNORECASE)
+            match = re.search(r'((Brgy\.)\s+)?' + str(barangay), address, re.IGNORECASE)
             street_address = address[:match.span()[0]].strip() if match else address.split(barangay)[0].strip()
         elif municipality and municipality in address:
             street_address = address.split(municipality)[0].strip()
@@ -780,7 +808,7 @@ def clean_address(row: pd.Series,
     cleaned_address = ', '.join([''.join([street_address, f" in {barangay}" if barangay else '']),
                        municipality if municipality else '',
                        province if province else '']) + ' in Philippines'
-    cleaned_address = re.sub('( ,|\s{2,})', '', cleaned_address)
+    cleaned_address = re.sub(r'( ,|\s{2,})', '', cleaned_address)
     
     # Extract street name using a regex pattern for streets
     street_pattern = r'(\b\w+\s+(St\.?|Street)\b)'
@@ -932,7 +960,7 @@ def geocode(df : pd.DataFrame) -> pd.DataFrame:
     
     return df_merged
 
-def load_mechanics_data(selected_date : dt.date = None) -> pd.DataFrame:
+def load_mechanics_data(source : str = 'query') -> pd.DataFrame:
     """
     Load mechanics data from a Google Sheet into a pandas DataFrame.
 
@@ -958,16 +986,20 @@ def load_mechanics_data(selected_date : dt.date = None) -> pd.DataFrame:
     """
     
     try:
-        # Load configuration data (e.g., Google Sheet ID and sheet name)
-        config = load_config()
-        mechs_sheet_id = config['mgo_sheet']
-        mechs_sheet_name = config['mechanics_sheet_name']
+        if source == 'query':
+            df_mechanics = pd.read_csv('http://app.redash.licagroup.ph/api/queries/423/results.csv?api_key=c1oGPUxq6HT7JxGjgjuoxPHHA7JAtGKn0xd4esT8')
         
-        # Construct the Google Sheets URL to load barangay lat/long data
-        url = f'https://docs.google.com/spreadsheets/d/{mechs_sheet_id}/gviz/tq?tqx=out:csv&sheet={mechs_sheet_name}'
-        
-        # Read the data into a DataFrame from the Google Sheet URL
-        df_mechanics = pd.read_csv(url).replace('', None)
+        else:
+            # Load configuration data (e.g., Google Sheet ID and sheet name)
+            config = load_config()
+            mechs_sheet_id = config['mgo_sheet']
+            mechs_sheet_name = config['mechanics_sheet_name']
+            
+            # Construct the Google Sheets URL to load barangay lat/long data
+            url = f'https://docs.google.com/spreadsheets/d/{mechs_sheet_id}/gviz/tq?tqx=out:csv&sheet={mechs_sheet_name}'
+            
+            # Read the data into a DataFrame from the Google Sheet URL
+            df_mechanics = pd.read_csv(url).replace('', None)
         
     except Exception as e:
         # Raise a specific error if the data loading fails
@@ -977,7 +1009,9 @@ def load_mechanics_data(selected_date : dt.date = None) -> pd.DataFrame:
 
     
 def extract_schedule_times(selected_sched: str,
-                           selected_date : dt.date):
+                           selected_date : dt.date,
+                           start_time_str : str = None,
+                           end_time_str : str = None):
     """
     Extract the start and end times from a schedule string of the format 'A:BC to X:YZ'.
     
@@ -990,26 +1024,33 @@ def extract_schedule_times(selected_sched: str,
         tuple: A tuple containing the start and end times as `datetime.time` objects.
     """
         
-    # Regex pattern to capture times
-    pattern = r'(\d{1,2}:\d{2} [APM]{2}) to (\d{1,2}:\d{2} [APM]{2})'
-    
-    # Search for the pattern in the given schedule string
-    match = re.search(pattern, selected_sched)
-    
-    if match:
-        start_time_str, end_time_str = match.groups()
+    if (start_time_str is None) or (end_time_str is None):
+        # Regex pattern to capture times
+        pattern = r'(\d{1,2}:\d{2} [APM]{2}) to (\d{1,2}:\d{2} [APM]{2})'
         
+        # Search for the pattern in the given schedule string
+        match = re.search(pattern, selected_sched)
+        start_time_str, end_time_str = match.groups()
+    else:
+        pass
+    
+    try:
         # Convert to datetime objects (optional)
-        start_time = dt.datetime.strptime(start_time_str, '%I:%M %p')
-        end_time = dt.datetime.strptime(end_time_str, '%I:%M %p')
+        try:
+            start_time = dt.datetime.strptime(start_time_str, '%I:%M %p')
+            end_time = dt.datetime.strptime(end_time_str, '%I:%M %p')
+        except:
+            start_time = dt.datetime.strptime(str(start_time_str)[:-3], '%H:%M')
+            end_time = dt.datetime.strptime(str(end_time_str)[:-3], '%H:%M')
         
         # Replace the date component with selected_date
         start_time = start_time.replace(year=selected_date.year, month=selected_date.month, day=selected_date.day)
         end_time = end_time.replace(year=selected_date.year, month=selected_date.month, day=selected_date.day)
         
-        
+    
         return start_time, end_time
-    else:
+    
+    except:
         return None, None
 
 def get_date_from_id(appointment_id : str or int,

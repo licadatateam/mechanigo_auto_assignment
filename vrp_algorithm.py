@@ -334,7 +334,8 @@ def get_solution(data, manager, routing, solution, time_dimension,
                     f"End: {dt.timedelta(seconds=appt_end_time)}\n"
                 )
                 
-                solution_dict[appointment_id] = {'barangay' : appointments_df.loc[appointments_df['appointment_id'] == appointment_id, 'barangay'].values[0],
+                solution_dict[appointment_id] = {'mechanic_id' : mechanics_df.iloc[mechanic_id,:]['ID'],
+                                                 'barangay' : appointments_df.loc[appointments_df['appointment_id'] == appointment_id, 'barangay'].values[0],
                                                  'municipality' : appointments_df.loc[appointments_df['appointment_id'] == appointment_id, 'municipality'].values[0],
                                                  'province' : appointments_df.loc[appointments_df['appointment_id'] == appointment_id, 'province'].values[0],
                                                  'assigned_mechanic' : mechanic_name,
@@ -957,18 +958,3 @@ def optimize_mechanics_assignment(mechanics_df : pd.DataFrame,
         
     return solution_plan
 
-# 20000 -> 231940 = 0/2 tool constraint fail
-# 30000 -> 231940 = 0/2 tool constraint fail
-# 60000 -> 231940 = 0/2 tool constraint fail
-# slack_max = 0 -> 231940 = 0/2 tool constraint fail
-# tool_capacity penalty = 15000 -> 301843 = 1/2 fail
-# tool_capacity penalty = 30000 -> 510904 = 0/2 fail
-# tool_capacity penalty = 5000 -> 159492 = 0/2 fail
-# tool_capacity penalty = 2500 -> 121037 = 0/2 fail
-# tool_capacity penalty = 20000 -> 371843 = 1/2 fail
-# hub_capacity penalty = 100000 -> 371843 = 1/2 fail
-# hub_capacity penalty = 20000 -> 371940 = 0/2 fail
-# hub_capacity penalty = 150000 -> 371843 = 1/2 fail
-
-# 36606
-# 36832
